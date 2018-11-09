@@ -101,26 +101,28 @@ There's no significant bumps in Google search impressions and clicks to Hindi Wi
 
 # Methods
 
-In the last section, we didn't see any significant bumps in traffic after both campaigns, but it's possible that the campaign had some long term impact on the traffic to Hindi Wikipedia, e.g. the increase rate of the pageviews/unique devices changed. This kind of long term impact is what we care about most in this project -- to improve recognition of Wikipedia and the understanding of its uses.
+In the last section, we didn't see any significant bumps in traffic after both campaigns, but it's possible that the campaign had some long term impact on the traffic to Hindi Wikipedia, e.g. the increase rate of the pageviews/unique devices changed. This kind of long term impact is what we care about most in this project -- improving recognition of Wikipedia and the understanding of its uses.
 
-In order to assess this hypothesis, we adopted an model-based approach to estimating the causal effect of a designed intervention on a time series. 
-Given a response time series (e.g., clicks) and a set of control time series (e.g., clicks in non-affected markets or clicks on other sites), the package constructs a Bayesian structural time-series model. This model is then used to try and predict the counterfactual, i.e., how the response metric would have evolved after the intervention if the intervention had never occurred. We are assuming: there is a set control time series that were themselves not affected by the intervention; the relationship between covariates and treated time series, as established during the pre-period, remains stable throughout the post-period.
-
-using the R package “bsts” (Scott et al., 2016).
-
-Goal is to see if there is any effect in the next 60 days
-
-check blog post and vignette for model description -- short!!
+In order to assess this hypothesis, we adopted an model-based approach to estimate the causal effect of the campaign on the pageviews and unique devices time series. With our test time series (pageviews and unique devices in Madhya Pradesh/India) as the response variable, and a set of control time series (pageviews and unique devices in non-affected regions) as predictors, we constructed a [Bayesian structural time series model](https://en.wikipedia.org/wiki/Bayesian_structural_time_series). This model was then used to predict the counterfactual, i.e., how the response metric would have evolved after the intervention if the intervention had never occurred. We then calculated the difference between the synthetic counterfactual control series and the observed test series for the post-intervention period (we chose 60 days in this analysis) – which is the estimated impact of the campaign – and compare to the posterior interval to gauge uncertainty. We used the R packages [“bsts”](https://CRAN.R-project.org/package=bsts) (Scott et al., 2018) and ["CausalImpact"](https://CRAN.R-project.org/package=CausalImpact) (Brodersen et al., 2017) for modeling and inference.
 
 ## Test and control series
 
-for every y: the y are ...
+The approach we described above is based on the following assumptions:
 
-for x: we exclude metrics from the same target area: No traffic to other wikis from India, since it's a multilingual country, the brand awareness will have effect on other wikis as well.
+* There is a set control time series that were themselves not affected by the intervention. If they were, we might falsely under- or overestimate the true effect. Or we might falsely conclude that there was an effect even though in reality there wasn’t.
+* The relationship between covariates and treated time series, as established during the pre-period, remains stable throughout the post-period.
+
+Therefore, we chose these test and control series to analyze the online and TV campaign:
+
+* *Online campaign*: We used the Hindi Wikipedia pageviews from Madhya Pradesh as the test series, and used Hindi Wikipedia pageviews from other India states and pageviews to other wikis [^2] from other India states as the control series. We excluded the pageviews to other wikis from Madhya Pradesh in the set of control series because most people in India are multilingual, if our brand awareness was affected by the campaign, the impact would likely be revealed on other wikis' traffic from the target region as well. We also analyzed a subset of the test and controls series -- the part of pageviews that's referred by search engines and external websites.
+
+
+Finding matching control markets for the test market where the event took place using time series matching based on historical data prior to the event (the “pre period”).
+Pre-screening step: find the best control markets for each market in the dataset using dynamic time warping.
 
 ## Model tuning
 
-don't mention I tune log: not proven to be helpful (should have revert back to original scale then compare)
+<!-- don't mention I tune log: not proven to be helpful (should have revert back to original scale then compare) -->
 
 ## Validation
 
@@ -130,7 +132,7 @@ To further confirm our conclusion, we also run other top models for each test se
 
 # Results
 
-Try out other top models: is the results the same or not?
+We also try out other top models: the results are the same.
 
 ## Online campaign
 
@@ -179,7 +181,7 @@ For TV campaign, control series are noisy, not significant result: companies are
 ## Software
 
 ```{r packages_refs, results = 'asis'}
-c("base", "bsts", "dtw", "CausalImpact", "magrittr", "ggplot2", "rmarkdown", "knitr") %>%
+c("base", "bsts", "dtw", "CausalImpact", "ggplot2", "rmarkdown", "knitr") %>%
   lapply(function(pkg) { return(format(citation(package = pkg), "text")) }) %>%
   unlist %>%
   {
