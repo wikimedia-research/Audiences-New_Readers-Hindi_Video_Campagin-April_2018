@@ -81,23 +81,23 @@ Since Google is the most popular search engine in India [^4], we also looked at 
 
 For the online campaign, there is a link to the Hindi Wikipedia main page under the video. After the promotion started on April 3rd, we saw some spikes in the main page pageviews from Madhya Pradesh on mobile platforms (mobile web or mobile app). External referred pageviews contribute the most to these spikes and they are users who clicked through the links most likely. There are also some spikes in direct pageviews, which means more users type in the URL or click on their bookmark to visit the main page during the campaign. We also noticed some smaller spikes in external referred pageviews from other states, which means the video was shared to users from other states in India.
 
-![](../figures/hiwiki_main_pv_2018.png)
+![](figures/hiwiki_main_pv_2018.png)
 
 Since our goal is to improve recognition of Wikipedia and understanding of its uses, we care more about the overall pageviews to Hindi Wikipedia, not just the main page. Although the Hindi Wikipedia's pageviews from Madhya Pradesh has been increasing year-over-year, we didn't see any significant bumps during the online campaign. There seems to be a decrease during the period, but it's likely a seasonal trend. For the pageviews to other wikis and Google trends from Madhya Pradesh, we didn't see any increase during the online campaign period neither (see the [appendix][Graphs from exploratory data analysis]).
 
-![](../figures/hiwiki_mp_pv.png)
+![](figures/hiwiki_mp_pv.png)
 
 ## TV campaign
 
 Since the TV campaign was broadcast nationwide, we looked at the Hindi Wikipedia pageviews from the whole country. Although the pageviews has been increasing year-over-year, we didn't see any significant bumps on the day of the TV promotion. And the spike appeared several days after the promotion came from an internal referred traffic spike. Similarlly, we didn't see any bumps in the number of unique devices to Hindi Wikipedia from India on or after the day of the TV promotion. See the [appendix][Graphs from exploratory data analysis] for more breakdowns.
 
-![](../figures/hiwiki_india_pv.png)
+![](figures/hiwiki_india_pv.png)
 
-![](../figures/hiwiki_india_ud.png)
+![](figures/hiwiki_india_ud.png)
 
 There's no significant bumps in Google search impressions and clicks to Hindi Wikipedia on or after the day of the TV promotion neither.
 
-![](../figures/gsc_hiwiki.png)
+![](figures/gsc_hiwiki.png)
 
 # Methods
 
@@ -138,29 +138,29 @@ We also try out other top models: the results are the same.
 
 Hindi Wikipedia pageviews:
 
-![](../figures/hiwiki_pv_online_impact.png)
+![](figures/hiwiki_pv_online_impact.png)
 
 Hindi Wikipedia external referred pageviews:
 
-![](../figures/hiwiki_external_pv_online_impact.png)
+![](figures/hiwiki_external_pv_online_impact.png)
 
 ## TV campaign
 
 Hindi Wikipedia pageviews:
 
-![](../figures/hiwiki_pv_tv_impact.png)
+![](figures/hiwiki_pv_tv_impact.png)
 
 Hindi Wikipedia external referred pageviews:
 
-![](../figures/hiwiki_external_pv_tv_impact.png)
+![](figures/hiwiki_external_pv_tv_impact.png)
 
 Hindi Wikipedia unique devices:
 
-![](../figures/hiwiki_ud_tv_impact.png)
+![](figures/hiwiki_ud_tv_impact.png)
 
 Hindi Wikipedia first visit unique devices:
 
-![](../figures/hiwiki_first_visit_ud_tv_impact.png)
+![](figures/hiwiki_first_visit_ud_tv_impact.png)
 
 For TV campaign, control series are noisy, not significant result: companies are giving out cell phones in India -- we can't eliminate that effect (confounding effect) with our control series.
 
@@ -199,15 +199,15 @@ c("base", "bsts", "dtw", "CausalImpact", "ggplot2", "rmarkdown", "knitr") %>%
 
 ## Graphs from exploratory data analysis
 
-![](../figures/pv_mp_bywiki_2018.png)
+![](figures/pv_mp_bywiki_2018.png)
 
-![](../figures/google_trends.png)
+![](figures/google_trends.png)
 
-![](../figures/pv_india_bywiki_2018.png)
+![](figures/pv_india_bywiki_2018.png)
 
-![](../figures/hiwiki_pv_bycountries_2018.png)
+![](figures/hiwiki_pv_bycountries_2018.png)
 
-![](../figures/ud_india_bywiki_2018.png)
+![](figures/ud_india_bywiki_2018.png)
 
-![](../figures/hiwiki_ud_bycountries_2018.png)
+![](figures/hiwiki_ud_bycountries_2018.png)
 
