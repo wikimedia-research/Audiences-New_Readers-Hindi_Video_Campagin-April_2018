@@ -135,7 +135,7 @@ run_bsts_model <- function(x, y, train_start, train_end, validation_start, valid
   ## holiday
   if (holiday) {
     ss <- AddRegressionHoliday(ss, train_data$y,
-                               holiday.list = list(Diwali, Raksha_Bandhan, Holi_validation, Dussehra, Newyear))
+                               holiday.list = list(Diwali, Raksha_Bandhan, Holi, Dussehra, Newyear))
   }
 
   # model

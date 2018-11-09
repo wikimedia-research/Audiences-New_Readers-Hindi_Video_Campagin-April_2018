@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="author" content="Chelsy Xie" />
+
+<meta name="date" content="2018-11-09" />
+
+<title>Understand the impact of video campaign on traffic to Hindi Wikipedia</title>
+
+<script src="index_files/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="index_files/bootstrap-3.3.6/css/bootstrap.min.css" rel="stylesheet" />
+<script src="index_files/bootstrap-3.3.6/js/bootstrap.min.js"></script>
+<script src="index_files/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<script src="index_files/navigation-1.1/tabsets.js"></script>
+<script src="index_files/navigation-1.1/codefolding.js"></script>
+<link href="index_files/magnific-popup-1.1.0/magnific-popup.css" rel="stylesheet" />
+<script src="index_files/magnific-popup-1.1.0/jquery.magnific-popup.min.js"></script>
+<link href="index_files/readthedown-0.1/readthedown.css" rel="stylesheet" />
+<script src="index_files/readthedown-0.1/readthedown.js"></script>
+<link href="index_files/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="index_files/tocify-1.9.1/jquery.tocify.js"></script>
+
+
+
+
+</head>
+
+<body>
+
+
+<div id="content" data-toggle="wy-nav-shift">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+<script>
+$(document).ready(function () {
+  window.initializeCodeFolding("hide" === "show");
+});
+</script>
+
+<nav id="nav-top" role="navigation" aria-label="top navigation">
+    <a role="button" href="#" data-toggle="wy-nav-top"><span class="glyphicon glyphicon-menu-hamburger"></span></a>
+</nav>
+
+<div class="btn-group pull-right">
+<button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="text-muted">Code</span> <span class="text-muted caret"></span></button>
+<ul class="dropdown-menu" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All</a></li>
+</ul>
+</div>
+
+<div id="header">
+<h1 class="title">Understand the impact of video campaign on traffic to Hindi Wikipedia</h1>
+</div>
+
+
+<div id="table-of-contents">
+    <h2><a href="#content">Understand the impact of video campaign on traffic to Hindi Wikipedia</a></h2>
+    <div id="text-table-of-contents">
+      <ul>
+      <li><a href="#background"><span class="toc-section-number">1</span> Background</a></li>
+      <li><a href="#data"><span class="toc-section-number">2</span> Data</a></li>
+      <li><a href="#exploratory-data-analysis"><span class="toc-section-number">3</span> Exploratory data analysis</a><ul>
+      <li><a href="#online-campaign"><span class="toc-section-number">3.1</span> Online campaign</a></li>
+      <li><a href="#tv-campaign"><span class="toc-section-number">3.2</span> TV campaign</a></li>
+      </ul></li>
+      <li><a href="#methods"><span class="toc-section-number">4</span> Methods</a><ul>
+      <li><a href="#test-and-control-series"><span class="toc-section-number">4.1</span> Test and control series</a></li>
+      <li><a href="#model-tuning"><span class="toc-section-number">4.2</span> Model tuning</a></li>
+      <li><a href="#validation"><span class="toc-section-number">4.3</span> Validation</a></li>
+      </ul></li>
+      <li><a href="#results"><span class="toc-section-number">5</span> Results</a><ul>
+      <li><a href="#online-campaign-1"><span class="toc-section-number">5.1</span> Online campaign</a></li>
+      <li><a href="#tv-campaign-1"><span class="toc-section-number">5.2</span> TV campaign</a></li>
+      </ul></li>
+      <li><a href="#discussion"><span class="toc-section-number">6</span> Discussion</a></li>
+      <li><a href="#reference"><span class="toc-section-number">7</span> Reference</a><ul>
+      <li><a href="#reading"><span class="toc-section-number">7.1</span> Reading</a></li>
+      <li><a href="#software"><span class="toc-section-number">7.2</span> Software</a></li>
+      </ul></li>
+      <li><a href="#appendix"><span class="toc-section-number">8</span> Appendix</a><ul>
+      <li><a href="#graphs-from-exploratory-data-analysis"><span class="toc-section-number">8.1</span> Graphs from exploratory data analysis</a></li>
+      </ul></li>
+      </ul>
+    </div>
+</div>
+
+<div id="main">
+<script type="text/javascript">
+$( function() {
+  /* Lets the user click on the images to view them in full resolution. */
+  $( "img" ).wrap( function() {
+    var link = $( '<a/>' );
+    link.attr( 'href', $( this ).attr( 'src' ));
+    link.attr( 'target', '_blank' );
+    return link;
+  } );
+} );
+</script>
+<p>
+{ <a href="https://phabricator.wikimedia.org/T204275">Phabricator Task</a> | <a href="https://github.com/wikimedia-research/Audiences-New_Readers-Hindi_Video_Campagin-April_2018">Analysis Codebase</a> }
+</p>
+<div id="background" class="section level1">
+<h1><span class="header-section-number">1</span> Background</h1>
+<p>The Wikimedia Foundation is working with Wikimedians across India to increase awareness of Wikipedia. Our goals are to improve recognition of Wikipedia and understanding of its uses.</p>
+<p>About the program: <a href="https://docs.google.com/presentation/d/1lfgkp6jJyAuL1W8C3cBncNPpdskC8IpUxjL1Z-6NuYQ/edit?ts=5bc91e1d#slide=id.g2c34e0a974_0_299" class="uri">https://docs.google.com/presentation/d/1lfgkp6jJyAuL1W8C3cBncNPpdskC8IpUxjL1Z-6NuYQ/edit?ts=5bc91e1d#slide=id.g2c34e0a974_0_299</a> Program page: <a href="https://meta.wikimedia.org/wiki/New_Readers/Raising_Awareness_in_India" class="uri">https://meta.wikimedia.org/wiki/New_Readers/Raising_Awareness_in_India</a></p>
+<p>On April 3 2018, we published and promoted the Ektara video on digital channels. The promotion was ran for 3 weeks and concluded on April 23. On May 27 2018, the Ektara video broadcast on DD Sports during IPL Final.</p>
+</div>
+<div id="data" class="section level1">
+<h1><span class="header-section-number">2</span> Data</h1>
+<p>In order to measure the traffic to Hindi Wikipedia, we chose the <a href="https://meta.wikimedia.org/wiki/Research:Page_view">pageviews</a> and <a href="https://meta.wikimedia.org/wiki/Research:Unique_Devices">unique devices</a> to Hindi Wikipedia as the test metrics. As the online video campaign was targeting the Madhya Pradesh region while the TV campaign was broadcast nationwide, the metrics we used were aggregated at the state and the country level respectively when analyzing the impact of these two channels <a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a>.</p>
+<p>To reveal the impact of the video campaign on these metrics, we chose some control metrics as comparison. Specifically, for the online campaign, we compared the pageviews to Hindi Wikipedia from Madhya Pradesh with pageviews from other states in India, and with pageviews to other wikis <a href="#fn2" class="footnoteRef" id="fnref2"><sup>2</sup></a>; for the TV campaign, we compared the pageviews and unique devices to Hindi Wikipedia from India with pageviews and unique devices from other countries <a href="#fn3" class="footnoteRef" id="fnref3"><sup>3</sup></a>, and with pageviews and unique devices to other wikis.</p>
+<p>Since Google is the most popular search engine in India <a href="#fn4" class="footnoteRef" id="fnref4"><sup>4</sup></a>, we also looked at the <a href="https://en.wikipedia.org/wiki/Google_Trends">Google trends</a> <a href="#fn5" class="footnoteRef" id="fnref5"><sup>5</sup></a>, and impressions and clicks counts of Hindi Wikipedia on Google (data was obtained from <a href="https://en.wikipedia.org/wiki/Google_Search_Console">Google search console</a>).</p>
+</div>
+<div id="exploratory-data-analysis" class="section level1">
+<h1><span class="header-section-number">3</span> Exploratory data analysis</h1>
+<div id="online-campaign" class="section level2">
+<h2><span class="header-section-number">3.1</span> Online campaign</h2>
+<p>For the online campaign, there is a link to the Hindi Wikipedia main page under the video. After the promotion started on April 3rd, we saw some spikes in the main page pageviews from Madhya Pradesh on mobile platforms (mobile web or mobile app). External referred pageviews contribute the most to these spikes and they are users who clicked through the links most likely. There are also some spikes in direct pageviews, which means more users type in the URL or click on their bookmark to visit the main page during the campaign. We also noticed some smaller spikes in external referred pageviews from other states, which means the video was shared to users from other states in India.</p>
+<p><img src="../figures/hiwiki_main_pv_2018.png" /></p>
+<p>Since our goal is to improve recognition of Wikipedia and understanding of its uses, we care more about the overall pageviews to Hindi Wikipedia, not just the main page. Although the Hindi Wikipedia’s pageviews from Madhya Pradesh has been increasing year-over-year, we didn’t see any significant bumps during the online campaign. There seems to be a decrease during the period, but it’s likely a seasonal trend. For the pageviews to other wikis and Google trends from Madhya Pradesh, we didn’t see any increase during the online campaign period neither (see the <a href="#graphs-from-exploratory-data-analysis">appendix</a>).</p>
+<p><img src="../figures/hiwiki_mp_pv.png" /></p>
+</div>
+<div id="tv-campaign" class="section level2">
+<h2><span class="header-section-number">3.2</span> TV campaign</h2>
+<p>Since the TV campaign was broadcast nationwide, we looked at the Hindi Wikipedia pageviews from the whole country. Although the pageviews has been increasing year-over-year, we didn’t see any significant bumps on the day of the TV promotion. And the spike appeared several days after the promotion came from an internal referred traffic spike. Similarlly, we didn’t see any bumps in the number of unique devices to Hindi Wikipedia from India on or after the day of the TV promotion. See the <a href="#graphs-from-exploratory-data-analysis">appendix</a> for more breakdowns.</p>
+<p><img src="../figures/hiwiki_india_pv.png" /></p>
+<p><img src="../figures/hiwiki_india_ud.png" /></p>
+<p>There’s no significant bumps in Google search impressions and clicks to Hindi Wikipedia on or after the day of the TV promotion neither.</p>
+<p><img src="../figures/gsc_hiwiki.png" /></p>
+</div>
+</div>
+<div id="methods" class="section level1">
+<h1><span class="header-section-number">4</span> Methods</h1>
+<p>In the last section, we didn’t see any significant bumps after both campaigns, but it’s possible that there was some long term impact on the traffic to Hindi Wikipedia, e.g. the rate of the pageview increase changes. In order to do that, we use BSTS Goal is to see if there is any effect in the next 60 days</p>
+<p>check blog post and vignette for model description – short!!</p>
+<div id="test-and-control-series" class="section level2">
+<h2><span class="header-section-number">4.1</span> Test and control series</h2>
+<p>for every y: the y are …</p>
+<p>for x: we exclude metrics from the same target area: No traffic to other wikis from India, since it’s a multilingual country, the brand awareness will have effect on other wikis as well.</p>
+</div>
+<div id="model-tuning" class="section level2">
+<h2><span class="header-section-number">4.2</span> Model tuning</h2>
+<p>don’t mention I tune log: not proven to be helpful (should have revert back to original scale then compare)</p>
+</div>
+<div id="validation" class="section level2">
+<h2><span class="header-section-number">4.3</span> Validation</h2>
+<p>To prevent the model pick up spurious impact</p>
+<p>To further confirm our conclusion, we also run other top models for each test series.</p>
+</div>
+</div>
+<div id="results" class="section level1">
+<h1><span class="header-section-number">5</span> Results</h1>
+<p>Try out other top models: is the results the same or not?</p>
+<div id="online-campaign-1" class="section level2">
+<h2><span class="header-section-number">5.1</span> Online campaign</h2>
+<p>Hindi Wikipedia pageviews:</p>
+<p><img src="../figures/hiwiki_pv_online_impact.png" /></p>
+<p>Hindi Wikipedia external referred pageviews:</p>
+<p><img src="../figures/hiwiki_external_pv_online_impact.png" /></p>
+</div>
+<div id="tv-campaign-1" class="section level2">
+<h2><span class="header-section-number">5.2</span> TV campaign</h2>
+<p>Hindi Wikipedia pageviews:</p>
+<p><img src="../figures/hiwiki_pv_tv_impact.png" /></p>
+<p>Hindi Wikipedia external referred pageviews:</p>
+<p><img src="../figures/hiwiki_external_pv_tv_impact.png" /></p>
+<p>Hindi Wikipedia unique devices:</p>
+<p><img src="../figures/hiwiki_ud_tv_impact.png" /></p>
+<p>Hindi Wikipedia first visit unique devices:</p>
+<p><img src="../figures/hiwiki_first_visit_ud_tv_impact.png" /></p>
+<p>For TV campaign, control series are noisy, not significant result: companies are giving out cell phones in India – we can’t eliminate that effect (confounding effect) with our control series.</p>
+</div>
+</div>
+<div id="discussion" class="section level1">
+<h1><span class="header-section-number">6</span> Discussion</h1>
+</div>
+<div id="reference" class="section level1">
+<h1><span class="header-section-number">7</span> Reference</h1>
+<div id="reading" class="section level2">
+<h2><span class="header-section-number">7.1</span> Reading</h2>
+<ol>
+<li id="ref-1">
+Scott, S. L., and Varian, H. R. (2014). Predicting the present with bayesian structural time series. International Journal of Mathematical Modelling and Numerical Optimisation, 5(1/2), 4. <a href="http://doi.org/10.1504/ijmmno.2014.059942" class="uri">http://doi.org/10.1504/ijmmno.2014.059942</a>
+</li>
+<li id="ref-2">
+Brodersen, K. H., Gallusser, F., and Koehler, J. (2015). Inferring causal impact using Bayesian structural time-series models. The Annals of Applied Statistics. <a href="http://doi.org/10.1214/14-AOAS788" class="uri">http://doi.org/10.1214/14-AOAS788</a>, <a href="http://research.google.com/pubs/pub41854.html" class="uri">http://research.google.com/pubs/pub41854.html</a>
+</li>
+<li id="ref-3">
+Larsen, K. (2016, January 13). Making Causal Impact Analysis Easy [Blog post]. Retrieved from <a href="http://multithreaded.stitchfix.com/blog/2016/01/13/market-watch/" class="uri">http://multithreaded.stitchfix.com/blog/2016/01/13/market-watch/</a>
+</li>
+<li id="ref-4">
+Larsen, K. (2016, April 21). Sorry ARIMA, but I’m Going Bayesian [Blog post]. Retrieved from <a href="http://multithreaded.stitchfix.com/blog/2016/04/21/forget-arima/" class="uri">http://multithreaded.stitchfix.com/blog/2016/04/21/forget-arima/</a>
+</li>
+<li id="ref-5">
+Census of India: Comparative speaker’s strength of Scheduled Languages-1951, 1961, 1971, 1981, 1991, 2001 and 2011. <a href="http://www.censusindia.gov.in/2011Census/C-16_25062018_NEW.pdf" class="uri">http://www.censusindia.gov.in/2011Census/C-16_25062018_NEW.pdf</a>
+</li>
+</ol>
+</div>
+<div id="software" class="section level2">
+<h2><span class="header-section-number">7.2</span> Software</h2>
+<ol start="5" style="list-style-type: decimal">
+<li id="ref-5">
+R Core Team (2018). <em>R: A Language and Environment for StatisticalComputing</em>. R Foundation for Statistical Computing, Vienna,Austria. <a href="https://www.R-project.org/" class="uri">https://www.R-project.org/</a>
+</li>
+<li id="ref-6">
+Scott SL (2018). <em>bsts: Bayesian Structural Time Series</em>. Rpackage version 0.8.0, <a href="https://CRAN.R-project.org/package=bsts" class="uri">https://CRAN.R-project.org/package=bsts</a>
+</li>
+<li id="ref-7">
+Giorgino T (2009). “Computing and Visualizing Dynamic Time WarpingAlignments in R: The dtw Package.” <em>Journal of StatisticalSoftware</em>, <em>31</em>(7), 1-24. <a href="http://www.jstatsoft.org/v31/i07/" class="uri">http://www.jstatsoft.org/v31/i07/</a>
+</li>
+<li id="ref-8">
+Tormene P, Giorgino T, Quaglini S, Stefanelli M (2008). “MatchingIncomplete Time Series with Dynamic Time Warping: An Algorithm andan Application to Post-Stroke Rehabilitation.” <em>ArtificialIntelligence in Medicine</em>, <em>45</em>(1), 11-34. <a href="doi:10.1016/j.artmed.2008.11.007" class="uri">doi:10.1016/j.artmed.2008.11.007</a> (URL:<a href="http://doi.org/10.1016/j.artmed.2008.11.007" class="uri">http://doi.org/10.1016/j.artmed.2008.11.007</a>).
+</li>
+<li id="ref-9">
+Brodersen KH, Gallusser F, Koehler J, Remy N, Scott SL (2014).“Inferring causal impact using Bayesian structural time-seriesmodels.” <em>Annals of Applied Statistics</em>, <em>9</em>, 247-274. <a href="http://research.google.com/pubs/pub41854.html" class="uri">http://research.google.com/pubs/pub41854.html</a>
+</li>
+<li id="ref-10">
+Bache SM, Wickham H (2014). <em>magrittr: A Forward-Pipe Operator forR</em>. R package version 1.5, <a href="https://CRAN.R-project.org/package=magrittr" class="uri">https://CRAN.R-project.org/package=magrittr</a>
+</li>
+<li id="ref-11">
+Wickham H (2016). <em>ggplot2: Elegant Graphics for Data Analysis</em>.Springer-Verlag New York. ISBN 978-3-319-24277-4, <a href="http://ggplot2.org" class="uri">http://ggplot2.org</a>
+</li>
+<li id="ref-12">
+Allaire J, Xie Y, McPherson J, Luraschi J, Ushey K, Atkins A,Wickham H, Cheng J, Chang W (2018). <em>rmarkdown: Dynamic Documentsfor R</em>. R package version 1.10, <a href="https://CRAN.R-project.org/package=rmarkdown" class="uri">https://CRAN.R-project.org/package=rmarkdown</a>
+</li>
+<li id="ref-13">
+Xie Y (2018). <em>knitr: A General-Purpose Package for Dynamic ReportGeneration in R</em>. R package version 1.20, <a href="https://yihui.name/knitr/" class="uri">https://yihui.name/knitr/</a>
+</li>
+<li id="ref-14">
+Xie Y (2015). <em>Dynamic Documents with R and knitr</em>, 2nd edition.Chapman and Hall/CRC, Boca Raton, Florida. ISBN 978-1498716963, <a href="https://yihui.name/knitr/" class="uri">https://yihui.name/knitr/</a>
+</li>
+<li id="ref-15">
+Xie Y (2014). “knitr: A Comprehensive Tool for ReproducibleResearch in R.” In Stodden V, Leisch F, Peng RD (eds.),<em>Implementing Reproducible Computational Research</em>. Chapman andHall/CRC. ISBN 978-1466561595, <a href="http://www.crcpress.com/product/isbn/9781466561595" class="uri">http://www.crcpress.com/product/isbn/9781466561595</a>
+</li>
+</ol>
+</div>
+</div>
+<div id="appendix" class="section level1">
+<h1><span class="header-section-number">8</span> Appendix</h1>
+<div id="graphs-from-exploratory-data-analysis" class="section level2">
+<h2><span class="header-section-number">8.1</span> Graphs from exploratory data analysis</h2>
+<p><img src="../figures/pv_mp_bywiki_2018.png" /></p>
+<p><img src="../figures/google_trends.png" /></p>
+<p><img src="../figures/pv_india_bywiki_2018.png" /></p>
+<p><img src="../figures/hiwiki_pv_bycountries_2018.png" /></p>
+<p><img src="../figures/ud_india_bywiki_2018.png" /></p>
+<p><img src="../figures/hiwiki_ud_bycountries_2018.png" /></p>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>As of November 2018, we can’t break down the unique devices counts by state.<a href="#fnref1">↩</a></p></li>
+<li id="fn2"><p>Top 10 wiki projects in India or Madhya Pradesh with the most pageviews and major Indian languages wikipedias spoken by more than 4% of the population (see <a href="#ref-5">2011 census of India</a>).<a href="#fnref2">↩</a></p></li>
+<li id="fn3"><p>Top countries with most pageviews to Hindi Wikipedia, and countries whose official languages overlap with India (see the <a href="https://en.wikipedia.org/wiki/List_of_languages_by_the_number_of_countries_in_which_they_are_recognized_as_an_official_language">list of languages by the number of countries in which they are recognized as an official language</a>).<a href="#fnref3">↩</a></p></li>
+<li id="fn4"><p>Search engine market share in India: <a href="http://gs.statcounter.com/search-engine-market-share/all/india" class="uri">http://gs.statcounter.com/search-engine-market-share/all/india</a><a href="#fnref4">↩</a></p></li>
+<li id="fn5"><p>We used the search terms: hindi wikipedia + wikipedia + विकिपीडिया + vikipeedyia<a href="#fnref5">↩</a></p></li>
+</ol>
+</div>
+</div>
+
+
+</div>
+
+<div id="postamble" data-toggle="wy-nav-shift" class="status">
+<p class="author"><span class="glyphicon glyphicon-user"></span> Chelsy Xie</p>
+<p class="date"><span class="glyphicon glyphicon-calendar"></span> 09 November 2018</p>
+</div>
+
+
+<script>
+$(document).ready(function () {
+ 	  });
+</script>
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
