@@ -69,8 +69,7 @@ $(document).ready(function () {
       </ul></li>
       <li><a href="#methods"><span class="toc-section-number">4</span> Methods</a><ul>
       <li><a href="#test-and-control-series"><span class="toc-section-number">4.1</span> Test and control series</a></li>
-      <li><a href="#model-tuning"><span class="toc-section-number">4.2</span> Model tuning</a></li>
-      <li><a href="#validation"><span class="toc-section-number">4.3</span> Validation</a></li>
+      <li><a href="#model-selection"><span class="toc-section-number">4.2</span> Model selection</a></li>
       </ul></li>
       <li><a href="#results"><span class="toc-section-number">5</span> Results</a><ul>
       <li><a href="#online-campaign-1"><span class="toc-section-number">5.1</span> Online campaign</a></li>
@@ -100,13 +99,19 @@ $( function() {
   } );
 } );
 </script>
-<p>
+<h2>
+Executive Summary
+</h2>
+<p>In July 2017, the Wikimedia Foundation and the Hindi Wikimedians User Group began collaborating to reach “New Readers” in India. On April 3 2018, we published and promoted the Ektara video on digital channels targeting Madhya Pradesh. The promotion was ran for 3 weeks and concluded on April 23. On May 27 2018, the Ektara video broadcast on DD Sports during IPL Final. Our goals are to improve recognition of Wikipedia and understanding of its uses.</p>
+<p>In this analysis, we use Bayesian structural time series models to model Hindi Wikipedia pageviews and unique devices from Madhya Pradesh or India, and estimate the causal impact of the online and the TV campaign. The effect of the online campaign on pageviews from Madhya Pradesh is negative with its 95% credible interval included 0, meaning the online campaign did not have a statistically significant effect. The effect of the TV campaign on the overall pageviews from India is statistically significantly positive – 0.14M more pageviews daily with a 95% interval of [0.04M, 0.26M] in 60 days after the campaign. However, we didn’t see significantly positive effect in the external referred pageviews, nor the unique devices count from India. Overall, we don’t think the signal is strong enough to conclude that our campaign is a success.</p>
+<p style="text-align: center;">
 { <a href="https://phabricator.wikimedia.org/T204275">Phabricator Task</a> | <a href="https://github.com/wikimedia-research/Audiences-New_Readers-Hindi_Video_Campagin-April_2018">Analysis Codebase</a> }
 </p>
 <div id="background" class="section level1">
 <h1><span class="header-section-number">1</span> Background</h1>
 <p>The Wikimedia Foundation is working with Wikimedians across India to increase awareness of Wikipedia. Our goals are to improve recognition of Wikipedia and understanding of its uses.</p>
-<p>About the program: <a href="https://docs.google.com/presentation/d/1lfgkp6jJyAuL1W8C3cBncNPpdskC8IpUxjL1Z-6NuYQ/edit?ts=5bc91e1d#slide=id.g2c34e0a974_0_299" class="uri">https://docs.google.com/presentation/d/1lfgkp6jJyAuL1W8C3cBncNPpdskC8IpUxjL1Z-6NuYQ/edit?ts=5bc91e1d#slide=id.g2c34e0a974_0_299</a> Program page: <a href="https://meta.wikimedia.org/wiki/New_Readers/Raising_Awareness_in_India" class="uri">https://meta.wikimedia.org/wiki/New_Readers/Raising_Awareness_in_India</a></p>
+<!-- About the program: https://docs.google.com/presentation/d/1lfgkp6jJyAuL1W8C3cBncNPpdskC8IpUxjL1Z-6NuYQ/edit?ts=5bc91e1d#slide=id.g2c34e0a974_0_299 -->
+<!-- Program page: https://meta.wikimedia.org/wiki/New_Readers/Raising_Awareness_in_India -->
 <p>On April 3 2018, we published and promoted the Ektara video on digital channels. The promotion was ran for 3 weeks and concluded on April 23. On May 27 2018, the Ektara video broadcast on DD Sports during IPL Final.</p>
 </div>
 <div id="data" class="section level1">
@@ -146,45 +151,54 @@ $( function() {
 </ul>
 <p>Therefore, we chose these test and control series to analyze the online and TV campaign:</p>
 <ul>
-<li><em>Online campaign</em>: We used the Hindi Wikipedia pageviews from Madhya Pradesh as the test series, and used Hindi Wikipedia pageviews from other India states and pageviews to other wikis <a href="#fn6" class="footnoteRef" id="fnref6"><sup>6</sup></a> from other India states as the control series. We excluded the pageviews to other wikis from Madhya Pradesh in the set of control series because most people in India are multilingual, if our brand awareness was affected by the campaign, the impact would likely be revealed on other wikis’ traffic from the target region as well. We also analyzed a subset of the test and controls series – the part of pageviews that’s referred by search engines and external websites.</li>
+<li><strong>Online campaign</strong>: We used the Hindi Wikipedia pageviews from Madhya Pradesh as the test series, and used Hindi Wikipedia pageviews from other India states and pageviews to other wikis <a href="#fn6" class="footnoteRef" id="fnref6"><sup>6</sup></a> from other India states as the control series. We excluded the pageviews to other wikis from Madhya Pradesh in the set of control series because most people in India are multilingual, if our brand awareness was affected by the campaign, the impact would likely be revealed on other wikis’ traffic from the target region as well. We also analyzed a subset of the test and controls series – the pageviews referred by search engines and external websites.</li>
+<li><strong>TV campaign</strong>: We used the Hindi Wikipedia pageviews and unique devices from India as the test series, and used pageviews and unique devices from other countries <a href="#fn7" class="footnoteRef" id="fnref7"><sup>7</sup></a> to Hindi Wikipedia and other wikis as the control series. For the same reason mentioned above, we excluded the pageviews and unique devices to other wikis from India in the set of control series. We also analyzed a subset of the test and controls series – the pageviews referred by search engines and external websites and the unique devices that visit our sites for the first time (without cookies).</li>
 </ul>
-<p>Finding matching control markets for the test market where the event took place using time series matching based on historical data prior to the event (the “pre period”). Pre-screening step: find the best control markets for each market in the dataset using dynamic time warping.</p>
+<p>Since there are hundreds of time series in the control sets, we want to prescreen them before fitting them into the models. Based on historical data prior to the intervention, we find the best control series for each test series using <a href="https://en.wikipedia.org/wiki/Dynamic_time_warping">dynamic time warping</a> and correlation.</p>
 </div>
-<div id="model-tuning" class="section level2">
-<h2><span class="header-section-number">4.2</span> Model tuning</h2>
-<!-- don't mention I tune log: not proven to be helpful (should have revert back to original scale then compare) -->
-</div>
-<div id="validation" class="section level2">
-<h2><span class="header-section-number">4.3</span> Validation</h2>
-<p>To prevent the model pick up spurious impact</p>
-<p>To further confirm our conclusion, we also run other top models for each test series.</p>
+<div id="model-selection" class="section level2">
+<h2><span class="header-section-number">4.2</span> Model selection</h2>
+<p>Before fitting bayesian structural time series model on the whole pre-intervention data set, we selected the 60 days before intervention as the validation period. We fitted multiple models using data before the validation period and then conduct a 60-days forecast. We then compute the <a href="https://en.wikipedia.org/wiki/Mean_absolute_percentage_error">mean average percent error (MAPE)</a> of our prediction and use it compare models. We tried different combinations of the following model configuration:</p>
+<ul>
+<li><strong>Candidate control set</strong>: 1) time series of Hindi Wikipedia, 2) a mixed of top 30 (among all control series) dynamic time warping-matched and correlated control series, 3) a mixed of top 10 (among all control series and among all Hindi Wikipedia series) dynamic time warping-matched and correlated control series, plus hand selected control series – we selected states with more than 50% of their population speaking Hindi (see <a href="#ref-5">2011 census of India</a>), 4) No control series.</li>
+<li><strong>Trend</strong>: For the trend component, we tried 1) local level trend with prior standard deviation of the Gaussian random walk as 0.01, 2) local level trend with prior standard deviation of the Gaussian random walk as 0.1, 3) local linear trend, 4) semi-local linear trend, 5) a static intercept term.</li>
+<li><strong>AR component</strong>: We tried models with an AR(1) state component or not.</li>
+<li><strong>Seasonality</strong>: We tried models without seasonality, or models with weekly cycle and monthly annual cycle.</li>
+<li><strong>Holiday</strong>: We tried models without holiday effect, or models with a regression-based holiday component. We considered Diwali, Raksha Bandhan, Holi, Dussehra and New year in this analysis.</li>
+<li><strong>Training start date</strong>: Since there might be different factors influencing the relationship between covariates and treated time series, we also tried changing the start date of our training data to 2016-01-01, 2017-01-01 and 2017-10-01.</li>
+</ul>
+<p>To prevent the model from picking up spurious impact, we also computed the imaginary causal impact during validation period for the top models with small MAPE. We compared the estimated impact and its credible interval of the top models (the smaller the better) and we didn’t find a significant effect in the validation period, i.e., counterfactual estimates and actual data should agree reasonably closely.</p>
+<p>Lastly, we plot the covariates to make sure they didn’t affected by the real intervention.</p>
 </div>
 </div>
 <div id="results" class="section level1">
 <h1><span class="header-section-number">5</span> Results</h1>
-<p>We also try out other top models: the results are the same.</p>
+<p>We fit several top models for each test series and got very similar conclusions. In this section, we will present the best model for each test series according to our validation results.</p>
 <div id="online-campaign-1" class="section level2">
 <h2><span class="header-section-number">5.1</span> Online campaign</h2>
-<p>Hindi Wikipedia pageviews:</p>
+<p>For Hindi Wikipedia pageviews from Madhya Pradesh, the best model has a static intercept, AR(1) and seasonality state component, but no holiday component. It uses a mixed of top 30 (among all control series) dynamic time warping-matched and correlated control series and the training data start from 2017-01-01.</p>
+<p>In the plot below, the first panel shows the data and a counterfactual prediction for the post-intervention period. The second panel shows the difference between observed data and counterfactual predictions. This is the pointwise causal effect, as estimated by the model. The third panel adds up the pointwise contributions from the second panel, resulting in a plot of the cumulative effect of the intervention. The estimated causal effect is -11.15K pageviews daily with a 95% interval of [-25.03K, 5.20K], which means this effect is not statistically significant and may be the result of random fluctuations that are unrelated to the intervention.</p>
 <p><img src="figures/hiwiki_pv_online_impact.png" /></p>
-<p>Hindi Wikipedia external referred pageviews:</p>
+<p>For Hindi Wikipedia external referred pageviews from Madhya Pradesh, the best model has a static intercept, seasonality and holiday state component, but no AR(1) component. It uses a mixed of top 30 (among all control series) dynamic time warping-matched and correlated control series and the training data start from 2017-10-01. The estimated causal effect is -8.64K pageviews daily with a 95% interval of [-23.07K, 5.82K], which means this effect is not statistically significant and may be the result of random fluctuations that are unrelated to the intervention.</p>
 <p><img src="figures/hiwiki_external_pv_online_impact.png" /></p>
 </div>
 <div id="tv-campaign-1" class="section level2">
 <h2><span class="header-section-number">5.2</span> TV campaign</h2>
-<p>Hindi Wikipedia pageviews:</p>
+<p>For Hindi Wikipedia pageviews from India, the best model has a local level trend with prior standard deviation of the Gaussian random walk as 0.01, and AR(1), seasonality and holiday state component. It didn’t use any control series and the training data start from 2016-01-01. In fact, none of the top models during validation use any control series, which may indicate the data is very noisy and the relationships between the test series and the covariates are not stable.</p>
+<p>The estimated causal effect is 0.14M pageviews daily with a 95% interval of [0.04M, 0.26M], which means the positive effect observed during the intervention period is statistically significant and unlikely to be due to random fluctuations.</p>
 <p><img src="figures/hiwiki_pv_tv_impact.png" /></p>
-<p>Hindi Wikipedia external referred pageviews:</p>
+<p>For Hindi Wikipedia external referred pageviews from India, the best model has a local level trend with prior standard deviation of the Gaussian random walk as 0.01, and AR(1), seasonality and holiday state component. It didn’t use any control series and the training data start from 2016-01-01. In fact, none of the top models during validation use any control series, which may indicate the data is very noisy and the relationships between the test series and the covariates are not stable.</p>
+<p>The estimated causal effect is 49.77K pageviews daily with a 95% interval of [-3.66K, 103.71K], which means this effect is not statistically significant and may be the result of random fluctuations that are unrelated to the intervention.</p>
 <p><img src="figures/hiwiki_external_pv_tv_impact.png" /></p>
-<p>Hindi Wikipedia unique devices:</p>
+<p>For Hindi Wikipedia unique devices from India, the best model has a local level trend with prior standard deviation of the Gaussian random walk as 0.01, and AR(1), seasonality and holiday state component. It uses a mixed of top 10 (among all control series and among all Hindi Wikipedia series) dynamic time warping-matched and correlated control series and the training data start from 2017-10-01. The estimated causal effect is 84.11K unique devices daily with a 95% interval of [-20.54K, 178.52K], which means this effect is not statistically significant and may be the result of random fluctuations that are unrelated to the intervention.</p>
 <p><img src="figures/hiwiki_ud_tv_impact.png" /></p>
-<p>Hindi Wikipedia first visit unique devices:</p>
+<p>For Hindi Wikipedia first visit unique devices from India, the best model has a local linear trend, but no AR(1), seasonality or holiday state component. It uses a mixed of top 10 (among all control series and among all Hindi Wikipedia series) dynamic time warping-matched and correlated control series and the training data start from 2017-10-01. The estimated causal effect is -0.96K unique devices daily with a 95% interval of [-60.98K, 55.03K], which means this effect is not statistically significant and may be the result of random fluctuations that are unrelated to the intervention.</p>
 <p><img src="figures/hiwiki_first_visit_ud_tv_impact.png" /></p>
-<p>For TV campaign, control series are noisy, not significant result: companies are giving out cell phones in India – we can’t eliminate that effect (confounding effect) with our control series.</p>
 </div>
 </div>
 <div id="discussion" class="section level1">
 <h1><span class="header-section-number">6</span> Discussion</h1>
+<!-- For TV campaign, data is noisy, not significant result: companies are giving out cell phones in India -->
 </div>
 <div id="reference" class="section level1">
 <h1><span class="header-section-number">7</span> Reference</h1>
@@ -265,6 +279,7 @@ Xie Y (2014). “knitr: A Comprehensive Tool for ReproducibleResearch in R.” I
 <li id="fn4"><p>Search engine market share in India: <a href="http://gs.statcounter.com/search-engine-market-share/all/india" class="uri">http://gs.statcounter.com/search-engine-market-share/all/india</a><a href="#fnref4">↩</a></p></li>
 <li id="fn5"><p>We used the search terms: hindi wikipedia + wikipedia + विकिपीडिया + vikipeedyia<a href="#fnref5">↩</a></p></li>
 <li id="fn6"><p>Top 10 wiki projects in India or Madhya Pradesh with the most pageviews and major Indian languages wikipedias spoken by more than 4% of the population (see <a href="#ref-5">2011 census of India</a>).<a href="#fnref6">↩</a></p></li>
+<li id="fn7"><p>Top countries with most pageviews to Hindi Wikipedia, and countries whose official languages overlap with India (see the <a href="https://en.wikipedia.org/wiki/List_of_languages_by_the_number_of_countries_in_which_they_are_recognized_as_an_official_language">list of languages by the number of countries in which they are recognized as an official language</a>).<a href="#fnref7">↩</a></p></li>
 </ol>
 </div>
 </div>

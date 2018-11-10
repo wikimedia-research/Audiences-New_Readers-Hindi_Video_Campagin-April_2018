@@ -211,7 +211,7 @@ x[, c(1, match(unlist(selected_controls["mixed"]), colnames(x)))] %>%
 
 # Try model 470 394 36 to compute causal impact (using hacked CausalImpact package)
 
-train_start <- as.Date("2016-01-01")
+train_start <- as.Date("2017-10-01")
 train_end <- tv_start - 1
 test_start <- tv_start
 test_end <- tv_start + 59
