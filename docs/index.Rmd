@@ -49,9 +49,9 @@ library(magrittr)
 
 <h2>Executive Summary</h2>
 
-To improve the recognition of Wikipedia and the understanding of its uses in India, the Wikimedia Foundation started a video campaign to explain and promote Hindi Wikipedia. On April 3 2018, we published and promoted the Ektara video on digital channels targeting Madhya Pradesh, which was live for 3 weeks. On May 27 2018, a second TV push happened during a major Cricket event.
+To improve the recognition of Wikipedia and the understanding of its uses in India, the Wikimedia Foundation started a video campaign to explain and promote Hindi Wikipedia. On April 3 2018, we published and promoted the Ektara video on digital channels targeting Madhya Pradesh, which was live for 3 weeks. The online promotion resulted in ~1.2k clickthroughs/day on average during the campaign period. On May 27 2018, a second TV push happened during a major Cricket event.
 
-In this analysis, we use Bayesian structural time series models to model Hindi Wikipedia pageviews and unique devices from Madhya Pradesh or India, and estimate the causal impact of the online and the TV campaign. The effect of the online campaign on pageviews from Madhya Pradesh is negative with its 95% credible interval included 0, meaning the online campaign did not have a statistically significant effect. The effect of the TV campaign on the overall pageviews from India is statistically significantly positive -- 0.14M more pageviews daily with a 95% interval of [0.04M, 0.26M] in 60 days after the campaign. However, we didn't see significantly positive effect in the external referred pageviews, nor the unique devices count from India. Overall, we don't think the signal is strong enough to conclude that our campaign is a success.
+In this analysis, we use Bayesian structural time series models to model Hindi Wikipedia pageviews and unique devices from Madhya Pradesh or India, and estimate the causal impact of the online and the TV campaign. The effect of the online campaign on pageviews from Madhya Pradesh is negative with its 95% credible interval included 0, meaning the online campaign did not have a statistically significant effect. The current model we are using on detecting the impact of the TV campaign on the overall pageviews from India is not very accurate according to our validation, although it indicates a statistically significantly positive impact -- 0.14M more pageviews daily with a 95% interval of [0.03M, 0.26M] in 60 days after the campaign. We didn't see significantly positive effect in the external referred pageviews, nor the unique devices count from India. Overall, we don't think the signal is strong enough to conclude that our campaign is a success.
 
 <p style = "text-align: center;">
 { <a href="https://phabricator.wikimedia.org/T204275">Phabricator Task</a> | <a href="https://github.com/wikimedia-research/Audiences-New_Readers-Hindi_Video_Campaign-April_2018">Analysis Codebase</a> }
@@ -71,7 +71,7 @@ To reveal the impact of the video campaign on these metrics, we chose some contr
 
 Since Google is the most popular search engine in India [^4], we also looked at the [Google trends](https://en.wikipedia.org/wiki/Google_Trends) [^5], and impressions and clicks counts of Hindi Wikipedia on Google (data was obtained from [Google search console](https://en.wikipedia.org/wiki/Google_Search_Console)).
 
-[^1]: As of November 2018, we can't break down the unique devices counts by state.
+[^1]: Because of our 90-days data retention policy, we cannot recover the webrequest data back in April and get the unique devices counts by state.
 [^2]: Top 10 wiki projects in India or Madhya Pradesh with the most pageviews and major Indian languages wikipedias spoken by more than 4% of the population (see [2011 census of India](#ref-6)).
 [^3]: Top countries with most pageviews to Hindi Wikipedia, and countries whose official languages overlap with India (see the [list of languages by the number of countries in which they are recognized as an official language](https://en.wikipedia.org/wiki/List_of_languages_by_the_number_of_countries_in_which_they_are_recognized_as_an_official_language)).
 [^4]: Search engine market share in India: http://gs.statcounter.com/search-engine-market-share/all/india
@@ -81,7 +81,7 @@ Since Google is the most popular search engine in India [^4], we also looked at 
 
 ## Online campaign
 
-For the online campaign, there is a link to the Hindi Wikipedia main page under the video. After the promotion started on April 3rd, we saw some spikes in the main page pageviews from Madhya Pradesh on mobile platforms (mobile web or mobile app). External referred pageviews contribute the most to these spikes and they are users who clicked through the links most likely. There are also some spikes in direct pageviews, which means more users type in the URL or click on their bookmark to visit the main page during the campaign. We also noticed some smaller spikes in external referred pageviews from other states, which means the video was shared to users from other states in India.
+For the online campaign, there is a link to the Hindi Wikipedia main page under the video. After the promotion started on April 3rd, we saw some spikes in the main page pageviews from Madhya Pradesh on mobile platforms (mobile web or mobile app). External referred pageviews contribute the most to these spikes and they are users who clicked through the links most likely. There are also some spikes in direct pageviews, which means more users type in the URL or click on their bookmark to visit the main page during the campaign. We also noticed some smaller spikes in external referred pageviews from other states, which means the video was shared to users from other states in India. According to [T185584](https://phabricator.wikimedia.org/T185584#4440086), the online campaign resulted in ~1.2k clickthroughs/day on average during the campaign period.
 
 ![](figures/hiwiki_main_pv_2018.png)
 
@@ -160,9 +160,9 @@ For Hindi Wikipedia external referred pageviews from Madhya Pradesh, the best mo
 
 ### Pageviews
 
-For Hindi Wikipedia pageviews from India, the best model has a local level trend with prior standard deviation of the Gaussian random walk as 0.01, and AR(1), seasonality and holiday state component. It didn't use any control series and the training data start from 2016-01-01 without log transformation. In fact, none of the top models during validation use any control series, which may indicate the data is very noisy and the relationships between the test series and the covariates are not stable. 
+For Hindi Wikipedia pageviews from India, the best model has a local level trend with prior standard deviation of the Gaussian random walk as 0.01, and AR(1), seasonality and holiday state component. It didn't use any control series and the training data start from 2016-01-01 without log transformation. In fact, none of the top models use any control series according to our cross validation results, which may indicate the relationships between the test series and the covariates are not stable. Moreover, when testing the model on an imaginary intervention, the counterfactual estimates and actual data didn't agree closely, meaning that the causal impact we estimate below is not very trustworthy.
 
-The estimated causal effect is 0.14M pageviews daily with a 95% interval of [0.04M, 0.26M], which means the positive effect observed during the intervention period is statistically significant and unlikely to be due to random fluctuations.
+The estimated causal effect is 0.14M pageviews daily with a 95% interval of [0.03M, 0.26M], which means the positive effect observed during the intervention period is statistically significant.
 
 ![](figures/hiwiki_pv_tv_impact.png)
 
@@ -183,6 +183,8 @@ For Hindi Wikipedia first visit unique devices from India, the best model has a 
 ![](figures/hiwiki_first_visit_ud_tv_impact.png)
 
 # Discussion
+
+There are some known issues in our data accuracy. First, the Wikimedia Foundation is using a paid IP geolocation databases [Maxmind](https://www.maxmind.com/en/geoip2-databases) to identify where our users coming from. It's known that the databases is not very reliable for anything below country-level (see [wikitech](https://wikitech.wikimedia.org/wiki/Analytics/Systems/Cluster/Geolocation) for more details) since 2014. Although MaxMind may have improved its accuracy since then, we are not sure at this moment. Second, [Google Web Light](https://support.google.com/webmasters/answer/6211428?hl=en), a service transcodes and hosts our pages on slow mobile connections, has been launched in India since 2015. It has lead to the inaccuracy in our pageviews and unique devices counts, and we will estimate its impact and fix this issue in our data in the future.
 
 When training models using Hindi Wikipedia pageviews from India (see section 5.2.1), we found that models with covariates are not better than the univariate time series models, and the univariate time series models are not very accurate. This may be the result of the confounding effect of India's increasing internet access -- telecom operators are in savage fight for market share and they have been giving out free cell phones with low cost data, which leads to a huge growth in internet access in India. Our covariates in this analysis didn't reflect the internet access growth and thus don't correlate with the test series very well before the intervention. Further research is needed to find other correlated covariates.
 
