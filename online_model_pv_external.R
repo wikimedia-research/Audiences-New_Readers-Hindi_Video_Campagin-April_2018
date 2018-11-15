@@ -1,4 +1,4 @@
-# devtools::install_github("google/CausalImpact", force = TRUE)
+# devtools::install_github("chelsyx/CausalImpact", force = TRUE)
 # install.packages("dtw")
 
 library(CausalImpact)
@@ -48,38 +48,41 @@ control_series_log <- data.frame(date = control_series$date, {
    mutate_all(control_series[, -1], log) %>%
      apply(2, function(x) replace(x, is.infinite(x), 0))
 })
+rm(gsc_hiwiki, gsc_hiwiki_country, gsc_m_hiwiki_country, hiwiki_main_pv, pageviews, unique_devices, mp_gtrend, india_gtrend)
 
 # Choose models
-
-train_start <- min(test_series$date)
-train_end <- online_start - 60 - 1
-validation_start <- online_start - 60
-validation_end <- online_start - 1
-model_spec_online <- expand.grid(
+model_spec <- expand.grid(
   controls = c("hiwiki_all", "mixed", "best_all", "none"),
-  trend = c("local_level_0.01", "local_level_0.1", "local_linear", "semi_local", "static"),
+  trend = c("local_level", "local_linear", "semi_local", "static"),
+  prior_level_sd = c(0.01, 0.1),
   ar = c(TRUE, FALSE),
   seasonality = c(TRUE, FALSE),
   holiday = c(TRUE, FALSE),
+  dynamic_regression = c(TRUE, FALSE),
   log = c(TRUE, FALSE),
   train_start = as.Date(c("2016-01-01", "2017-01-01", "2017-10-01"))
 )
+model_spec %<>% filter(!(model_spec$prior_level_sd != 0.01 & model_spec$trend != "local_level"))
+model_spec %<>% filter(!(model_spec$dynamic_regression & model_spec$controls == "none"))
 
-n_iters <- 2e3
-prev_param_log <- NULL
-prev_param_start <- NULL
-model_compare <- data.frame(matrix(nrow=nrow(model_spec_online), ncol=3))
-names(model_compare) <- c('ID', 'MAPE', 'rsquare')
+# Model selection (run on stat1007)
 
-for (i in 1:nrow(model_spec_online)){
-  param <- model_spec_online[i, ]
+library(foreach)
+library(doParallel)
+
+cl <- makeCluster(25)
+registerDoParallel(cl)
+
+model_compare <- foreach(i=1:nrow(model_spec), .combine=rbind,
+                         .packages = c("dplyr", "magrittr", "CausalImpact", "dtw"),
+                         .export=ls(envir=globalenv())) %dopar% {
+  param <- model_spec[i, ]
   cat(paste("Round =", i, "start! log =", param$log, "train_start =", param$train_start,
             "controls =", param$controls, "trend =", param$trend, "autoAR =", param$ar,
-            "seasonality =", param$seasonality, "holiday =", param$holiday,
-            "\n"))
+            "seasonality =", param$seasonality, "holiday =", param$holiday, "dynamic regression =",
+            param$dynamic_regression, "prior_level_sd =", param$prior_level_sd, "\n"))
 
   train_start <- param$train_start
-
   if (param$log) {
     y <- test_series_log
     x <- control_series_log
@@ -87,190 +90,90 @@ for (i in 1:nrow(model_spec_online)){
     y <- test_series
     x <- control_series
   }
-
-  if (any(param$log != prev_param_log, param$train_start != prev_param_start, i == 1)) {
-    cat("Finding matched series...\n")
-    selected_controls <- control_candidates(test = y, control = x,
-                                            match_period_start = train_start, match_period_end = train_end,
-                                            n_candidates = 30)
-    selected_controls <- c(
-      selected_controls,
-      list(
-        hiwiki_all = grep("_hi.wikipedia$", colnames(x), value = TRUE),
-        mixed = unique(c(head(selected_controls$dtw_all, 10), head(selected_controls$dtw_hiwiki, 10),
-                head(selected_controls$corr_all, 10), head(selected_controls$corr_hiwiki, 10),
-                paste(c("Himachal.Pradesh", "Chandigarh", "Uttarakhand", "Haryana", "National.Capital.Territory.of.Delhi",
+  preselect_controls <- paste(c("Himachal.Pradesh", "Chandigarh", "Uttarakhand", "Haryana", "National.Capital.Territory.of.Delhi",
                              "Rajasthan", "Uttar.Pradesh", "Bihar", "Jharkhand", "Chhattisgarh"), "hi.wikipedia", sep = "_") # more than 50% population speak hindi
-                )),
-        best_all = unique(c(selected_controls$dtw_all, selected_controls$corr_all))
-        )
-      )
-    selected_controls[1:4] <- NULL
-  }
 
-  this_model <- run_bsts_model(x, y, train_start, train_end, validation_start, validation_end, selected_controls,
-    control_condidates = param$controls, trend = param$trend, autoAR = param$ar, seasonality = param$seasonality,
-    holiday = param$holiday, niter = n_iters)
+  cv_results <- bsts_cv_loop(x, y, cv_start = train_start, cv_end = tv_start - 1, horizon = 7, nfold = 10, log_transformed = param$log,
+                             control_group = param$controls, trend = param$trend, autoAR = param$ar, prior_level_sd = param$prior_level_sd,
+                             seasonality = param$seasonality, holiday = param$holiday, dynamic_regression = param$dynamic_regression,
+                             niter = 1000, n_control_candidates = 30, preselect_controls = preselect_controls)
 
-  this_impact <- CausalImpact(bsts.model = this_model$model,
-                              post.period.response = as.numeric(this_model$post.period.response))
-  this_impact$series <- apply(this_impact$series, 2, this_model$UnStandardize)
-  if (param$log) {
-    this_impact$series <- apply(this_impact$series, 2, exp)
-  }
-
-  model_compare$ID[i] <- i
-  model_compare$MAPE[i] <- this_impact$series[as.character(seq.Date(validation_start, validation_end, by = "day")), ] %>%
-    as.tibble %>%
-    summarise(MAPE=mean(abs(response-point.pred)/response)) %>% unlist()
-  model_compare$rsquare[i] <- summary(this_model$model)$rsquare
-
-  prev_param_log <- param$log
-  prev_param_start <- param$train_start
+  output <- c(
+    i, mean(cv_results$rmse), sd(cv_results$rmse), mean(cv_results$mape), sd(cv_results$mape),
+    mean(cv_results$rsquare), mean(cv_results$AbsEffect), mean(cv_results$AbsEffect_CI_width), mean(cv_results$AbsEffect_sd)
+    )
+  output
 }
 
-model_compare <- cbind(model_compare, model_spec_online)
+stopCluster(cl)
+colnames(model_compare) <- c('ID', 'RMSE', 'RMSE_sd', 'MAPE', 'MAPE_sd', 'Rsquare', 'AbsEffect', 'AbsEffect_CI_width', 'AbsEffect_sd')
+model_compare <- cbind(model_compare, model_spec)
 save(model_compare, file = "data/hiwiki_external_pv_model_compare.RData")
 
-
-# Examine the top models
+# Check model compare results
 load("data/hiwiki_external_pv_model_compare.RData")
-top_model_ID <- model_compare$ID[model_compare$MAPE < 0.045 & model_compare$log == FALSE]
+model_rank <- model_compare %>%
+  select(RMSE, RMSE_sd, MAPE, MAPE_sd, AbsEffect, AbsEffect_sd) %>%
+  mutate_all(rank) %>%
+  rowMeans() %>%
+  cbind(ID = model_compare$ID, model_spec)
+# best model is 839
 
-## Generate model objects
-
-## Compare one step ahead prediction errors
-CompareBstsModels(list("Model 803" = model_803$model,
-                       "Model 818" = model_818$model,
-                       "Model 819" = model_819$model,
-                       "Model 823" = model_823$model,
-                       "Model 839" = model_839$model,
-                       "Model 883" = model_883$model,
-                       "Model 886" = model_886$model,
-                       "Model 899" = model_899$model)) # 886 is better than others
-
-## Compare their imaginery causal impact
-impact_803 <- CausalImpact(bsts.model = model_803$model,
-                           post.period.response = as.numeric(model_803$post.period.response))
-impact_818 <- CausalImpact(bsts.model = model_818$model,
-                           post.period.response = as.numeric(model_818$post.period.response))
-impact_819 <- CausalImpact(bsts.model = model_819$model,
-                           post.period.response = as.numeric(model_819$post.period.response))
-impact_823 <- CausalImpact(bsts.model = model_823$model,
-                           post.period.response = as.numeric(model_823$post.period.response))
-impact_839 <- CausalImpact(bsts.model = model_839$model,
-                           post.period.response = as.numeric(model_839$post.period.response))
-impact_883 <- CausalImpact(bsts.model = model_883$model,
-                           post.period.response = as.numeric(model_883$post.period.response))
-impact_886 <- CausalImpact(bsts.model = model_886$model,
-                           post.period.response = as.numeric(model_886$post.period.response))
-impact_899 <- CausalImpact(bsts.model = model_899$model,
-                           post.period.response = as.numeric(model_899$post.period.response))
-plot(impact_803); plot(impact_818); plot(impact_819); plot(impact_823);
-plot(impact_839); plot(impact_883); plot(impact_886); plot(impact_899);
-# 886 is better because it over predict in a later weekly cycle
-sort(desc(c(
-impact_803=impact_803$summary$p[1],
-impact_818=impact_818$summary$p[1],
-impact_819=impact_819$summary$p[1],
-impact_823=impact_823$summary$p[1],
-impact_839=impact_839$summary$p[1],
-impact_883=impact_883$summary$p[1],
-impact_886=impact_886$summary$p[1],
-impact_899=impact_899$summary$p[1]
-)))
-impact_803$summary$AbsEffect.upper-impact_803$summary$AbsEffect.lower;
-impact_818$summary$AbsEffect.upper-impact_818$summary$AbsEffect.lower;
-impact_819$summary$AbsEffect.upper-impact_819$summary$AbsEffect.lower;
-impact_823$summary$AbsEffect.upper-impact_823$summary$AbsEffect.lower;
-impact_839$summary$AbsEffect.upper-impact_839$summary$AbsEffect.lower;
-impact_883$summary$AbsEffect.upper-impact_883$summary$AbsEffect.lower;
-impact_886$summary$AbsEffect.upper-impact_886$summary$AbsEffect.lower;
-impact_899$summary$AbsEffect.upper-impact_899$summary$AbsEffect.lower;
-# AbsEffect 886 839 823 803 883 819 818 899
-# AbsEffect CI 823 839 818 899 883 819 803 886
-# AbsEffect.sd 823 839 818 819 883 899 803 886
-# p-value 886 839 823 803 818 883 819 899
-
-# Try 886, 823 and 839
-
-
-## Plot the selected control series to make sure they didn't affected by the intervention
-x[, c(1, match(unlist(selected_controls["best_all"]), colnames(x)))] %>%
-  filter(date >= as.Date("2018-01-01")) %>%
-  gather(source, pageviews, -date) %>%
-  ggplot(aes(x=date, y=pageviews, color=source)) +
-  geom_line() +
-  geom_vline(xintercept = online_start) +
-  geom_vline(xintercept = tv_start, linetype = "dashed")
-
-
-# Use model 886, 839&823 to compute causal impact (using hacked CausalImpact package)
-
+# check the imaginary intervention 60 days before the online campaign start on model 839
+n_iters <- 5e3
 train_start <- as.Date("2017-10-01")
-train_end <- online_start - 1
-test_start <- online_start
-test_end <- online_start + 59
-n_iters <- 1e4 + 2e3
+train_end <- online_start - 60 - 1
+validation_start <- online_start - 60
+validation_end <- online_start - 1
 y <- test_series
 x <- control_series
 
-cat("Finding matched series...\n")
 selected_controls <- control_candidates(test = y, control = x,
                                         match_period_start = train_start, match_period_end = train_end,
                                         n_candidates = 30)
 selected_controls <- c(
   selected_controls,
-  list(
-    hiwiki_all = grep("_hi.wikipedia$", colnames(x), value = TRUE),
-    mixed = unique(c(head(selected_controls$dtw_all, 10), head(selected_controls$dtw_hiwiki, 10),
-            head(selected_controls$corr_all, 10), head(selected_controls$corr_hiwiki, 10),
-            paste(c("Himachal.Pradesh", "Chandigarh", "Uttarakhand", "Haryana", "National.Capital.Territory.of.Delhi",
-                         "Rajasthan", "Uttar.Pradesh", "Bihar", "Jharkhand", "Chhattisgarh"), "hi.wikipedia", sep = "_") # more than 50% population speak hindi
-            )),
-    best_all = unique(c(selected_controls$dtw_all, selected_controls$corr_all))
-    )
+  list(best_all = unique(c(selected_controls$dtw_all, selected_controls$corr_all)))
+  )
+selected_controls[1:4] <- NULL
+
+model_839 <- run_bsts_model(x, y, train_start, train_end, validation_start, validation_end, selected_controls,
+  control_group = "best_all", trend = "static", autoAR = FALSE, seasonality = TRUE,
+  holiday = TRUE, dynamic_regression = FALSE, prior_level_sd = 0.01, niter = n_iters)
+model_839_impact <- CausalImpact(bsts.model = model_839$model,
+                                 post.period.response = model_839$UnStandardize(as.numeric(model_839$post.period.response)),
+                                 UnStandardize = model_839$UnStandardize)
+plot(model_839_impact)
+# the estimates and actual data agree reasonabaly closely
+
+
+# Use model 839 to compute causal impact (using hacked CausalImpact package)
+train_start <- as.Date("2017-10-01")
+train_end <- online_start - 1
+test_start <- online_start
+test_end <- online_start + 59
+n_iters <- 1e4
+y <- test_series
+x <- control_series
+
+selected_controls <- control_candidates(test = y, control = x,
+                                        match_period_start = train_start, match_period_end = train_end,
+                                        n_candidates = 30)
+selected_controls <- c(
+  selected_controls,
+  list(best_all = unique(c(selected_controls$dtw_all, selected_controls$corr_all)))
   )
 selected_controls[1:4] <- NULL
 
 model_839 <- run_bsts_model(x, y, train_start, train_end, test_start, test_end, selected_controls,
-  control_condidates = "best_all", trend = "static", autoAR = FALSE, seasonality = TRUE,
-  holiday = TRUE, niter = n_iters)
+  control_group = "best_all", trend = "static", autoAR = FALSE, seasonality = TRUE,
+  holiday = TRUE, dynamic_regression = FALSE, prior_level_sd = 0.01, niter = n_iters)
 model_839_impact <- CausalImpact(bsts.model = model_839$model,
                                  post.period.response = model_839$UnStandardize(as.numeric(model_839$post.period.response)),
                                  UnStandardize = model_839$UnStandardize)
-plot(model_839_impact) # negative not significant impact
-
-model_823 <- run_bsts_model(x, y, train_start, train_end, test_start, test_end, selected_controls,
-  control_condidates = "best_all", trend = "local_level_0.01", autoAR = FALSE, seasonality = TRUE,
-  holiday = TRUE, niter = n_iters)
-model_823_impact <- CausalImpact(bsts.model = model_823$model,
-                                 post.period.response = model_823$UnStandardize(as.numeric(model_823$post.period.response)),
-                                 UnStandardize = model_823$UnStandardize)
-plot(model_823_impact) # negative not significant impact
-
-model_886 <- run_bsts_model(x, y, train_start, train_end, test_start, test_end, selected_controls,
-  control_condidates = "mixed", trend = "local_level_0.1", autoAR = TRUE, seasonality = TRUE,
-  holiday = FALSE, niter = n_iters)
-model_886_impact <- CausalImpact(bsts.model = model_886$model,
-                                 post.period.response = model_886$UnStandardize(as.numeric(model_886$post.period.response)),
-                                 UnStandardize = model_886$UnStandardize)
-plot(model_886_impact) # negative not significant impact
-
+# not significant
+save(model_839_impact, file = "data/hiwiki_external_pv_online_impact.RData")
 p <- plot(model_839_impact)
 p <- p + labs(title = "Impact of the online campaign in 60 days on Hindi Wikipedia external referred pageviews from Madhya Pradesh",
               subtitle = "Dashed line represents the start date of the online campaign on YouTube and Facebook, April 3rd")
-ggsave("hiwiki_external_pv_online_impact.png", plot = p, path = 'figures', units = "in", dpi = 300, height = 9, width = 18)
-save(model_839_impact, file = "data/hiwiki_external_pv_online_impact.RData")
-
-
-# Not use custom model
-train_start <- as.Date("2017-10-01")
-train_data <- data.frame(
-  y = filter(y, date >= train_start & date <= test_end) %>% select(-date) %>% unlist(),
-  filter(x, date >= train_start & date <= test_end)[, match(unlist(selected_controls["best_all"]), colnames(x))]
-) %>%
-  xts::xts(order.by = seq.Date(train_start, test_end, "day"))
-impact <- CausalImpact(train_data, c(train_start, train_end), c(test_start, test_end),
-                       model.args = list(niter = n_iters, nseasons = 12, season.duration = 30))
-plot(impact) # significantly negative impact
+ggsave("hiwiki_external_pv_online_impact.png", plot = p, path = 'docs/figures', units = "in", dpi = 300, height = 9, width = 18)
