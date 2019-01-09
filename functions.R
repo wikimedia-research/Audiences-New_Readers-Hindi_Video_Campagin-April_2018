@@ -207,9 +207,23 @@ bsts_cv_loop <- function(x, y, cv_start, cv_end, horizon, nfold, control_group, 
     if (log_transformed) {
       post.period.response <- exp(post.period.response)
     }
-    this_impact <- CausalImpact(bsts.model = this_model$model,
-                                post.period.response = post.period.response,
-                                UnStandardize = this_model$UnStandardize, log_transformed = log_transformed)
+    this_impact <- tryCatch({
+      CausalImpact(bsts.model = this_model$model,
+                   post.period.response = post.period.response,
+                   UnStandardize = this_model$UnStandardize, log_transformed = log_transformed)
+      },
+      error = function(e) {e}
+    )
+
+    if (inherits(this_impact, "error")) {
+      rmse_v <- c(rmse_v, NA)
+      mape_v <- c(mape_v, NA)
+      rsquare_v <- c(rsquare_v, NA)
+      AbsEffect <- c(AbsEffect, NA)
+      AbsEffect_CI_width <- c(AbsEffect_CI_width, NA)
+      AbsEffect_sd <- c(AbsEffect_sd, NA)
+      next
+    }
 
     # evaluation
     errors <- tail(this_impact$series$response - this_impact$series$point.pred, horizon)

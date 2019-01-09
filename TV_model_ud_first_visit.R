@@ -97,8 +97,8 @@ model_compare <- foreach(i=1:nrow(model_spec), .combine=rbind,
                              niter = 1000, n_control_candidates = 20, preselect_controls = NULL)
 
   output <- c(
-    i, mean(cv_results$rmse), sd(cv_results$rmse), mean(cv_results$mape), sd(cv_results$mape),
-    mean(cv_results$rsquare), mean(cv_results$AbsEffect), mean(cv_results$AbsEffect_CI_width), mean(cv_results$AbsEffect_sd)
+    i, mean(cv_results$rmse, na.rm = TRUE), sd(cv_results$rmse, na.rm = TRUE), mean(cv_results$mape, na.rm = TRUE), sd(cv_results$mape, na.rm = TRUE),
+    mean(cv_results$rsquare, na.rm = TRUE), mean(cv_results$AbsEffect, na.rm = TRUE), mean(cv_results$AbsEffect_CI_width, na.rm = TRUE), mean(cv_results$AbsEffect_sd, na.rm = TRUE)
     )
   output
 }
@@ -115,9 +115,9 @@ model_rank <- model_compare %>%
   mutate_all(rank) %>%
   rowMeans() %>%
   cbind(ID = model_compare$ID, model_spec)
-# best model is 470
+# best model is 1563
 
-# check the imaginary intervention 60 days before the TV campaign start on model 470
+# check the imaginary intervention 60 days before the TV campaign start on model 1563
 n_iters <- 5e3
 train_start <- as.Date("2017-10-01")
 train_end <- tv_start - 60 - 1
@@ -131,22 +131,21 @@ selected_controls <- control_candidates(test = y, control = x,
                                         n_candidates = 20)
 selected_controls <- c(
   selected_controls,
-  list(mixed = unique(c(head(selected_controls$dtw_all, 10), head(selected_controls$dtw_hiwiki, 10),
-                head(selected_controls$corr_all, 10), head(selected_controls$corr_hiwiki, 10))))
+  list(best_all = unique(c(selected_controls$dtw_all, selected_controls$corr_all)))
   )
 selected_controls[1:4] <- NULL
 
-model_470 <- run_bsts_model(x, y, train_start, train_end, validation_start, validation_end, selected_controls,
-  control_group = "mixed", trend = "local_linear", autoAR = FALSE, seasonality = FALSE,
-  holiday = FALSE, dynamic_regression = FALSE, prior_level_sd = 0.01, niter = n_iters)
-model_470_impact <- CausalImpact(bsts.model = model_470$model,
-                                 post.period.response = model_470$UnStandardize(as.numeric(model_470$post.period.response)),
-                                 UnStandardize = model_470$UnStandardize)
-plot(model_470_impact)
-# the estimates and actual data agree reasonabaly closely
+model_1563 <- run_bsts_model(x, y, train_start, train_end, validation_start, validation_end, selected_controls,
+  control_group = "best_all", trend = "local_level", autoAR = TRUE, seasonality = FALSE,
+  holiday = TRUE, dynamic_regression = FALSE, prior_level_sd = 0.01, niter = n_iters)
+model_1563_impact <- CausalImpact(bsts.model = model_1563$model,
+                                 post.period.response = model_1563$UnStandardize(as.numeric(model_1563$post.period.response)),
+                                 UnStandardize = model_1563$UnStandardize)
+plot(model_1563_impact)
+# the estimates and actual data don't agree very closely
 
 
-# Use model 470 to compute causal impact (using hacked CausalImpact package)
+# Use model 1563 to compute causal impact (using hacked CausalImpact package)
 train_start <- as.Date("2017-10-01")
 train_end <- tv_start - 1
 test_start <- tv_start
@@ -160,20 +159,19 @@ selected_controls <- control_candidates(test = y, control = x,
                                         n_candidates = 20)
 selected_controls <- c(
   selected_controls,
-  list(mixed = unique(c(head(selected_controls$dtw_all, 10), head(selected_controls$dtw_hiwiki, 10),
-                head(selected_controls$corr_all, 10), head(selected_controls$corr_hiwiki, 10))))
+  list(best_all = unique(c(selected_controls$dtw_all, selected_controls$corr_all)))
   )
 selected_controls[1:4] <- NULL
 
-model_470 <- run_bsts_model(x, y, train_start, train_end, test_start, test_end, selected_controls,
-  control_group = "mixed", trend = "local_linear", autoAR = FALSE, seasonality = FALSE,
-  holiday = FALSE, dynamic_regression = FALSE, prior_level_sd = 0.01, niter = n_iters)
-model_470_impact <- CausalImpact(bsts.model = model_470$model,
-                                 post.period.response = model_470$UnStandardize(as.numeric(model_470$post.period.response)),
-                                 UnStandardize = model_470$UnStandardize)
+model_1563 <- run_bsts_model(x, y, train_start, train_end, test_start, test_end, selected_controls,
+  control_group = "best_all", trend = "local_level", autoAR = TRUE, seasonality = FALSE,
+  holiday = TRUE, dynamic_regression = FALSE, prior_level_sd = 0.01, niter = n_iters)
+model_1563_impact <- CausalImpact(bsts.model = model_1563$model,
+                                 post.period.response = model_1563$UnStandardize(as.numeric(model_1563$post.period.response)),
+                                 UnStandardize = model_1563$UnStandardize)
 # not significant
-save(model_470_impact, file = "data/hiwiki_first_visit_ud_tv_impact.RData")
-p <- plot(model_470_impact)
+save(model_1563_impact, file = "data/hiwiki_first_visit_ud_tv_impact.RData")
+p <- plot(model_1563_impact)
 p <- p + labs(title = "Impact of the TV campaign in 60 days on Hindi Wikipedia first visit unique devices from India",
               subtitle = "Vertical dashed line represents the date of TV campaign, May 27th")
 ggsave("hiwiki_first_visit_ud_tv_impact.png", plot = p, path = 'docs/figures', units = "in", dpi = 300, height = 9, width = 18)

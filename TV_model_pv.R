@@ -97,8 +97,8 @@ model_compare <- foreach(i=1:nrow(model_spec), .combine=rbind,
                              niter = 1000, n_control_candidates = 20, preselect_controls = NULL)
 
   output <- c(
-    i, mean(cv_results$rmse), sd(cv_results$rmse), mean(cv_results$mape), sd(cv_results$mape),
-    mean(cv_results$rsquare), mean(cv_results$AbsEffect), mean(cv_results$AbsEffect_CI_width), mean(cv_results$AbsEffect_sd)
+    i, mean(cv_results$rmse, na.rm = TRUE), sd(cv_results$rmse, na.rm = TRUE), mean(cv_results$mape, na.rm = TRUE), sd(cv_results$mape, na.rm = TRUE),
+    mean(cv_results$rsquare, na.rm = TRUE), mean(cv_results$AbsEffect, na.rm = TRUE), mean(cv_results$AbsEffect_CI_width, na.rm = TRUE), mean(cv_results$AbsEffect_sd, na.rm = TRUE)
     )
   output
 }
