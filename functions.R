@@ -43,8 +43,8 @@ control_candidates <- function(test, control, match_period_start, match_period_e
   names(distances) <- c('test', 'control', 'relative_distance', 'correlation')
   distances$test <- setdiff(colnames(test), "date")
 
-  test <- dplyr::filter(test, date >= match_period_start & date <= match_period_end) %>% dplyr::select(-date) %>% unlist()
-  control <- dplyr::filter(control, date >= match_period_start & date <= match_period_end) %>% dplyr::select(-date)
+  test <- dplyr::filter(test, date >= match_period_start & date <= match_period_end) %>% dplyr::select(-date) %>% unlist() %>% scale()
+  control <- dplyr::filter(control, date >= match_period_start & date <= match_period_end) %>% dplyr::select(-date) %>% scale()
   for (i in 1:ncol(control)) {
     distances$control[i] <- colnames(control)[i]
     if (var(control[, i]) == 0)  next
@@ -73,22 +73,15 @@ control_candidates <- function(test, control, match_period_start, match_period_e
 
 
 run_bsts_model <- function(x, y, train_start, train_end, validation_start, validation_end, selected_controls,
-                           control_group, trend, autoAR, seasonality, holiday, dynamic_regression = FALSE,
+                           trend, autoAR, weekly_seasonality, yearly_seasonality, holiday.list, dynamic_regression = FALSE,
                            prior_level_sd = 0.01, niter, ping = 0) {
 
   # prepare data
-  if (as.character(control_group) == "none") {
-    train_data <- data.frame(
-      y = dplyr::filter(y, date >= train_start & date <= validation_end) %>% dplyr::select(-date) %>% unlist()
-      ) %>%
-      xts::xts(order.by = seq.Date(train_start, validation_end, "day"))
-  } else {
-    train_data <- data.frame(
-      y = dplyr::filter(y, date >= train_start & date <= validation_end) %>% dplyr::select(-date) %>% unlist(),
-      dplyr::filter(x, date >= train_start & date <= validation_end)[, match(unlist(selected_controls[as.character(control_group)]), colnames(x))]
-    ) %>%
-      xts::xts(order.by = seq.Date(train_start, validation_end, "day"))
-  }
+  train_data <- data.frame(
+    y = dplyr::filter(y, date >= train_start & date <= validation_end) %>% dplyr::select(-date) %>% unlist(),
+    dplyr::filter(x, date >= train_start & date <= validation_end)[, match(selected_controls, colnames(x))]
+  ) %>%
+    xts::xts(order.by = seq.Date(train_start, validation_end, "day"))
 
   # standardize all variables
   sd.results <- StandardizeAllVariables(train_data, c(1, train_end - train_start + 1))
@@ -121,88 +114,79 @@ run_bsts_model <- function(x, y, train_start, train_end, validation_start, valid
   )
   ## AR
   if (autoAR) {
-    ss <- AddAutoAr(ss, train_data$y, lags = 1)
+    ss <- AddAutoAr(ss, train_data$y, lags = 5)
   }
   ## seasonality
-  if (seasonality) {
+  if (weekly_seasonality) {
     ss <- AddSeasonal(ss, train_data$y, nseasons = 7) # Weekly seasonality
+  }
+  if (yearly_seasonality){
     ss <- AddMonthlyAnnualCycle(ss, train_data$y) # Yearly seasonality
   }
   ## holiday
-  if (holiday) {
-    ss <- AddRegressionHoliday(ss, train_data$y,
-                               holiday.list = list(Diwali, Raksha_Bandhan, Holi, Dussehra, Newyear))
+  if (!is.null(holiday.list)) {
+    for (l in 1:length(holiday.list)) {
+      ind <- which(holiday.list[[l]]$end.date > train_end)
+      if (length(ind) > 0) {
+        holiday.list[[l]]$start.date <- holiday.list[[l]]$start.date[1:min(ind)-1]
+        holiday.list[[l]]$end.date <- holiday.list[[l]]$end.date[1:min(ind)-1]
+      }
+    }
+    ss <- AddRegressionHoliday(ss, train_data$y, holiday.list = holiday.list)
   }
 
   # model
   cat("Fitting BSTS model...\n")
-  if (as.character(control_group) == "none") {
-    bsts.model <- bsts(train_data$y, state.specification = ss, family = 'gaussian',
-                       niter = niter, seed = seed, ping = ping)
-  } else {
-    formula <- "y ~ ."
+  formula <- "y ~ ."
 
-    if (!dynamic_regression) {
-      bsts.model <- bsts(formula, state.specification = ss, family = 'gaussian', data = train_data,
-                         niter = niter, seed = seed, ping = ping, expected.r2 = 0.8, prior.df = 50,
-                         expected.model.size = min(ncol(train_data)*0.1, 5)) # Passed to SpikeSlabPrior, no need for a prior distribution if this presents
-    } else { # dynamic regression
-      sigma.mean.prior <- GammaPrior(prior.mean = 1, a = 4)
-      ss <- AddDynamicRegression(ss, formula, data = train_data,
-                                 sigma.mean.prior = sigma.mean.prior)
-      sd.prior <- SdPrior(sigma.guess = prior_level_sd * sdy,
-                          upper.limit = 0.1 * sdy,
-                          sample.size = 32)
-      bsts.model <- bsts(train_data$y, state.specification = ss, niter = niter,
-                         expected.model.size = min(ncol(train_data)*0.1, 5), ping = ping, seed = seed,
-                         prior = sd.prior)
-    }
+  if (!dynamic_regression) {
+    bsts.model <- bsts(formula, state.specification = ss, family = 'gaussian', data = train_data,
+                       niter = niter, seed = seed, ping = ping, expected.r2 = 0.8, prior.df = 50,
+                       expected.model.size = min(ncol(train_data)*0.1, 5)) # Passed to SpikeSlabPrior, no need for a prior distribution if this presents
+  } else { # dynamic regression
+    sigma.mean.prior <- GammaPrior(prior.mean = 1, a = 4)
+    ss <- AddDynamicRegression(ss, formula, data = train_data,
+                               sigma.mean.prior = sigma.mean.prior)
+    sd.prior <- SdPrior(sigma.guess = prior_level_sd * sdy,
+                        upper.limit = 0.1 * sdy,
+                        sample.size = 32)
+    bsts.model <- bsts(train_data$y, state.specification = ss, niter = niter,
+                       expected.model.size = min(ncol(train_data)*0.1, 5), ping = ping, seed = seed,
+                       prior = sd.prior)
   }
 
   return(list(model = bsts.model, post.period.response = post.period.response, UnStandardize = UnStandardize))
 }
 
 
-bsts_cv_loop <- function(x, y, cv_start, cv_end, horizon, nfold, control_group, log_transformed = FALSE, trend,
-                         autoAR, seasonality, holiday, dynamic_regression = FALSE, prior_level_sd = 0.01,
-                         niter, n_control_candidates = 20, preselect_controls = NULL) {
+bsts_cv_loop <- function(x, y, train_length, cv_end, horizon, nfold, step, log_transformed = FALSE, trend,
+                         autoAR, weekly_seasonality, yearly_seasonality, holiday.list, dynamic_regression = FALSE, prior_level_sd = 0.01,
+                         niter, n_control_candidates = 15, preselect_controls = NULL) {
   rmse_v <- c()
   mape_v <- c()
   rsquare_v <- c()
   AbsEffect <- c()
   AbsEffect_CI_width <- c()
   AbsEffect_sd <- c()
+  contain_zero <- c()
   for (fold in 1:nfold) {
     cat(paste("Round =", i, "fold =", fold, "start! \n"))
 
-    train_start <- cv_start
-    train_end <- cv_end - horizon*fold
+    train_end <- cv_end - horizon - step * (fold - 1)
+    train_start <- train_end - train_length + 1
 
-    if (control_group == "none") {
-      selected_controls <- NULL
-    } else if (control_group == "hiwiki_all") {
-      selected_controls <- list(hiwiki_all = grep("_hi.wikipedia$", colnames(x), value = TRUE))
-    } else {
-      cat("Finding matched series...\n")
-      selected_controls <- control_candidates(
-        test = y, control = x,
-        match_period_start = train_start, match_period_end = train_end,
-        n_candidates = n_control_candidates)
-      selected_controls <- c(
-        selected_controls,
-        list(
-          mixed = unique(c(head(selected_controls$dtw_all, 10), head(selected_controls$dtw_hiwiki, 10),
-                  head(selected_controls$corr_all, 10), head(selected_controls$corr_hiwiki, 10), preselect_controls
-                  )),
-          best_all = unique(c(selected_controls$dtw_all, selected_controls$corr_all))
-          )
-        )
-      selected_controls[1:4] <- NULL
-    }
+    cat("Finding matched series...\n")
+    selected_controls <- control_candidates(
+      test = y, control = x,
+      match_period_start = train_start, match_period_end = train_end,
+      n_candidates = 30)
+    selected_controls <- unique(c(head(selected_controls$dtw_all, n_control_candidates), head(selected_controls$dtw_hiwiki, n_control_candidates),
+      head(selected_controls$corr_all, n_control_candidates), head(selected_controls$corr_hiwiki, n_control_candidates),
+      preselect_controls))
 
     # fit model
     this_model <- run_bsts_model(x, y, train_start, train_end, train_end + 1, train_end + horizon, selected_controls,
-    control_group, trend, autoAR, seasonality, holiday, dynamic_regression, prior_level_sd, niter)
+    trend, autoAR, weekly_seasonality, yearly_seasonality, holiday.list, dynamic_regression, prior_level_sd, niter)
     post.period.response <- this_model$UnStandardize(as.numeric(this_model$post.period.response))
     if (log_transformed) {
       post.period.response <- exp(post.period.response)
@@ -222,6 +206,7 @@ bsts_cv_loop <- function(x, y, cv_start, cv_end, horizon, nfold, control_group, 
       AbsEffect <- c(AbsEffect, NA)
       AbsEffect_CI_width <- c(AbsEffect_CI_width, NA)
       AbsEffect_sd <- c(AbsEffect_sd, NA)
+      contain_zero <- c(contain_zero, NA)
       next
     }
 
@@ -235,9 +220,11 @@ bsts_cv_loop <- function(x, y, cv_start, cv_end, horizon, nfold, control_group, 
     AbsEffect <- c(AbsEffect, this_impact$summary$AbsEffect[1])
     AbsEffect_CI_width <- c(AbsEffect_CI_width, this_impact$summary$AbsEffect.upper[1]-this_impact$summary$AbsEffect.lower[1])
     AbsEffect_sd <- c(AbsEffect_sd, this_impact$summary$AbsEffect.sd[1])
+    cum_eff <- this_impact$series[seq.Date(train_end + 1, train_end + horizon, by = "day"), c("cum.effect.lower", "cum.effect.upper")]
+    contain_zero <- c(contain_zero, mean(apply(cum_eff, 1, function(x) {x[1] < 0 & x[2] > 0})))
   }
 
   return(data.frame(rmse=rmse_v, mape=mape_v, rsquare=rsquare_v,
-                    AbsEffect=AbsEffect, AbsEffect_CI_width=AbsEffect_CI_width, AbsEffect_sd=AbsEffect_sd))
+                    AbsEffect=AbsEffect, AbsEffect_CI_width=AbsEffect_CI_width, AbsEffect_sd=AbsEffect_sd, contain_zero=contain_zero))
 }
 
