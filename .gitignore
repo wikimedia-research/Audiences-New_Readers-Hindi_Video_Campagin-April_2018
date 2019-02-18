@@ -27,3 +27,5 @@ vignettes/*.pdf
 data/
 # Temorary files
 model.txt
+old_model_files/
+paper_model_files/

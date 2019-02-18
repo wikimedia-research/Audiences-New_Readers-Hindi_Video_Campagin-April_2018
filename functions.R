@@ -47,7 +47,7 @@ control_candidates <- function(test, control, match_period_start, match_period_e
   control <- dplyr::filter(control, date >= match_period_start & date <= match_period_end) %>% dplyr::select(-date) %>% scale()
   for (i in 1:ncol(control)) {
     distances$control[i] <- colnames(control)[i]
-    if (var(control[, i]) == 0)  next
+    if (var(control[, i], na.rm = TRUE) == 0|is.na(var(control[, i], na.rm = TRUE)))  next
     distances$relative_distance[i] <- dtw(test, control[, i], window.type=sakoeChibaWindow, window.size=1)$normalizedDistance
     distances$correlation[i] <- cor(test, control[, i])
   }
@@ -170,7 +170,7 @@ bsts_cv_loop <- function(x, y, train_length, cv_end, horizon, nfold, step, log_t
   AbsEffect_sd <- c()
   contain_zero <- c()
   for (fold in 1:nfold) {
-    cat(paste("Round =", i, "fold =", fold, "start! \n"))
+    # cat(paste("Round =", i, "fold =", fold, "start! \n"))
 
     train_end <- cv_end - horizon - step * (fold - 1)
     train_start <- train_end - train_length + 1
@@ -228,3 +228,9 @@ bsts_cv_loop <- function(x, y, train_length, cv_end, horizon, nfold, step, log_t
                     AbsEffect=AbsEffect, AbsEffect_CI_width=AbsEffect_CI_width, AbsEffect_sd=AbsEffect_sd, contain_zero=contain_zero))
 }
 
+PositiveMean <- function(b) {
+  b <- b[abs(b) > 0]
+  if (length(b) > 0)
+    return(mean(b))
+  return(0)
+}
